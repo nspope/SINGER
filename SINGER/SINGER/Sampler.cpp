@@ -9,12 +9,6 @@
 
 Sampler::Sampler() {}
 
-Sampler::Sampler(double pop_size, double r, double m) {
-    Ne = pop_size;
-    mut_rate = m*pop_size;
-    recomb_rate = r*pop_size;
-}
-
 Sampler::Sampler(double pop_size, Rate_map &rm, Rate_map &mm) {
     Ne = pop_size;
     mut_rate = mm.mean_rate()*Ne;
@@ -57,7 +51,7 @@ void Sampler::naive_read_vcf_haploid(string prefix, double start_pos, double end
     ifstream file(vcf_file);
     string line;
     int num_individuals = 0;
-    int prev_pos = -1;
+    double prev_pos = -1;
     vector<Node_ptr> nodes = {};
     int valid_mutation = 0;
     int removed_mutation = 0;
@@ -84,7 +78,7 @@ void Sampler::naive_read_vcf_haploid(string prefix, double start_pos, double end
         }
         istringstream iss(line);
         string chrom, id, ref, alt, qual, filter, info, format, genotype;
-        int pos;
+        double pos;
         iss >> chrom >> pos >> id >> ref >> alt >> qual >> filter >> info >> format;
         
         if (pos < start_pos) {continue;}
@@ -100,7 +94,7 @@ void Sampler::naive_read_vcf_haploid(string prefix, double start_pos, double end
         if (getline(file, next_line)) {
             istringstream next_iss(next_line);
             string next_chrom;
-            int next_pos;
+            double next_pos;
             next_iss >> next_chrom >> next_pos;
             if (next_pos == pos) {
                 removed_mutation += 1;
@@ -137,7 +131,7 @@ void Sampler::naive_read_vcf(string prefix, double start_pos, double end_pos) {
     ifstream file(vcf_file);
     string line;
     int num_individuals = 0;
-    int prev_pos = -1;
+    double prev_pos = -1;
     vector<Node_ptr> nodes = {};
     int valid_mutation = 0;
     int removed_mutation = 0;
@@ -164,7 +158,7 @@ void Sampler::naive_read_vcf(string prefix, double start_pos, double end_pos) {
         }
         istringstream iss(line);
         string chrom, id, ref, alt, qual, filter, info, format, genotype;
-        int pos;
+        double pos;
         iss >> chrom >> pos >> id >> ref >> alt >> qual >> filter >> info >> format;
         
         if (pos < start_pos) {continue;}
@@ -180,7 +174,7 @@ void Sampler::naive_read_vcf(string prefix, double start_pos, double end_pos) {
         if (getline(file, next_line)) {
             istringstream next_iss(next_line);
             string next_chrom;
-            int next_pos;
+            double next_pos;
             next_iss >> next_chrom >> next_pos;
             if (next_pos == pos) {
                 removed_mutation += 1;
@@ -251,7 +245,7 @@ void Sampler::guide_read_vcf(string prefix, double start, double end) {
         cerr << "VCF file not found: " + vcf_file << endl;
     }
     vcf_stream.seekg(byte_offset, ios::beg);
-    int prev_pos = -1;
+    double prev_pos = -1;
     vector<Node_ptr> nodes = {};
     int valid_mutation = 0;
     int removed_mutation = 0;
@@ -259,7 +253,7 @@ void Sampler::guide_read_vcf(string prefix, double start, double end) {
     while (getline(vcf_stream, line)) {
         istringstream iss(line);
         string chrom, id, ref, alt, qual, filter, info, format, genotype;
-        int pos;
+        double pos;
         iss >> chrom >> pos >> id >> ref >> alt >> qual >> filter >> info >> format;
         if (pos == prev_pos) {continue;} // skip multi-allelic sites
         if (pos >= end) {break;} // variant out of scope
@@ -272,7 +266,7 @@ void Sampler::guide_read_vcf(string prefix, double start, double end) {
         if (getline(vcf_stream, next_line)) {
             istringstream next_iss(next_line);
             string next_chrom;
-            int next_pos;
+            double next_pos;
             next_iss >> next_chrom >> next_pos;
             if (next_pos == pos) {
                 removed_mutation += 1;
@@ -386,18 +380,14 @@ void Sampler::build_singleton_arg() {
     arg = ARG(Ne, sequence_length);
     arg.discretize(bin_size);
     arg.build_singleton_arg(n);
-    if (mut_rate > 0 and recomb_rate > 0) {
-        arg.compute_rhos_thetas(recomb_rate, mut_rate);
-    } else {
-        arg.compute_rhos_thetas(recomb_map, mut_map);
-    }
+    arg.compute_rhos_thetas(recomb_map, mut_map);
 }
 
 void Sampler::build_void_arg() {
     double bin_size = rho_unit/recomb_rate;
     arg = ARG(Ne, sequence_length);
     arg.discretize(bin_size);
-    arg.compute_rhos_thetas(recomb_rate, mut_rate);
+    arg.compute_rhos_thetas(recomb_map, mut_map);
 }
 
 void Sampler::iterative_start() {
@@ -409,7 +399,7 @@ void Sampler::iterative_start() {
         random_engine.seed(random_seed);
         Threader_smc threader = Threader_smc(bsp_c, tsp_q);
         threader.pe->penalty = penalty;
-        threader.pe->ancestral_prob = polar;
+        threader.pe->ancestral_prob = std::make_shared<Polar_map>(polar_map);
         Node_ptr n = *it;
         threader.thread(arg, n);
         arg.check_incompatibility();
@@ -440,7 +430,7 @@ void Sampler::fast_iterative_start() {
         random_engine.seed(random_seed);
         Threader_smc threader = Threader_smc(bsp_c, tsp_q);
         threader.pe->penalty = penalty;
-        threader.pe->ancestral_prob = polar;
+        threader.pe->ancestral_prob = std::make_shared<Polar_map>(polar_map);
         Node_ptr n = *it;
         if (arg.sample_nodes.size() > 1) {
             threader.fast_thread(arg, n);
@@ -624,7 +614,7 @@ void Sampler::internal_sample(int num_iters, int spacing) {
         while (updated_length < spacing*arg.sequence_length) {
             Threader_smc threader = Threader_smc(bsp_c, tsp_q);
             threader.pe->penalty = penalty;
-            threader.pe->ancestral_prob = polar;
+            threader.pe->ancestral_prob = std::make_shared<Polar_map>(polar_map);
             tuple<double, Branch, double> cut_point = arg.sample_internal_cut();
             threader.internal_rethread(arg, cut_point);
             updated_length += arg.coordinates[threader.end_index] - arg.coordinates[threader.start_index];
@@ -656,7 +646,7 @@ void Sampler::fast_internal_sample(int num_iters, int spacing) {
         while (updated_length < spacing*arg.sequence_length) {
             Threader_smc threader = Threader_smc(bsp_c, tsp_q);
             threader.pe->penalty = penalty;
-            threader.pe->ancestral_prob = polar;
+            threader.pe->ancestral_prob = std::make_shared<Polar_map>(polar_map);
             tuple<double, Branch, double> cut_point = arg.sample_internal_cut();
             threader.fast_internal_rethread(arg, cut_point);
             updated_length += arg.coordinates[threader.end_index] - arg.coordinates[threader.start_index];
@@ -717,7 +707,7 @@ void Sampler::resume_fast_internal_sample(int num_iters, int spacing) {
     string coord_file = output_prefix + "_fast_coordinates.txt";
     arg.read(node_file, branch_file, recomb_file, mut_file);
     arg.read_coordinates(coord_file);
-    arg.compute_rhos_thetas(recomb_rate, mut_rate);
+    arg.compute_rhos_thetas(recomb_map, mut_map);
     arg.start_tree = arg.get_tree_at(arg.start);
     sample_index += 1;
     bsp_c = 0.1;
@@ -867,11 +857,7 @@ void Sampler::load_resume_arg() {
     coord_file = output_prefix + "_coordinates.txt";
     arg.read(node_file, branch_file, recomb_file, mut_file);
     arg.read_coordinates(coord_file);
-    if (mut_rate > 0 and recomb_rate > 0) {
-        arg.compute_rhos_thetas(recomb_rate, mut_rate);
-    } else {
-        arg.compute_rhos_thetas(recomb_map, mut_map);
-    }
+    arg.compute_rhos_thetas(recomb_map, mut_map);
 }
 
 vector<string> Sampler::read_last_line(string filename) {

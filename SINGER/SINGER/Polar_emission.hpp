@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "Emission.hpp"
+#include "Polar_map.hpp"
 
 using namespace std;
 
@@ -19,8 +20,8 @@ class Polar_emission : public Emission {
 public:
     
     double penalty = 0.01;
-    double ancestral_prob = 0.5;
     double root_reward = 1;
+    std::shared_ptr<Polar_map> ancestral_prob;
     
     vector<double> diff = vector<double>(4);
     

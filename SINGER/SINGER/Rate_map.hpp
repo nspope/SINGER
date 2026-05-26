@@ -15,13 +15,14 @@ class Rate_map {
     
 public:
     
-    double sequence_length = INT_MAX;
+    double sequence_length = 0;
     vector<double> coordinates = {};
     vector<double> rate_distances = {};
     
     Rate_map();
+    Rate_map(double rate, double length);
     
-    void load_map(string mut_map_file);
+    void load_map(string filename, double start_position, double end_position);
     
     int find_index(double x);
     

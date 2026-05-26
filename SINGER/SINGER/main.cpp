@@ -18,6 +18,7 @@ int main(int argc, const char * argv[]) {
     double start_pos = -1, end_pos = -1;
     string input_filename = "", output_prefix = "";
     string recomb_map_filename = "", mut_map_filename = "";
+    string polar_map_filename = "";
     double penalty = 0.01;
     double polar = 0.5;
     double epsilon_hmm = 0.1;
@@ -184,6 +185,13 @@ int main(int argc, const char * argv[]) {
             }
             mut_map_filename = argv[++i];
         }
+        else if (arg == "-polar_map") {
+            if (i + 1 > argc || argv[i+1][0] == '-') {
+                cerr << "Error: -polar_map flag cannot be empty. " << endl;
+                exit(1);
+            }
+            polar_map_filename = argv[++i];
+        }
         else if (arg == "-n") {
             if (i + 1 > argc || argv[i+1][0] == '-') {
                 cerr << "Error: -n flag cannot be empty. " << endl;
@@ -243,12 +251,24 @@ int main(int argc, const char * argv[]) {
             exit(1);
         }
     }
-    if (r < 0) {
-        cerr << "-r flag missing or invalid value. " << endl;
+    if (r <= 0 && recomb_map_filename.empty()) {
+        cerr << "Error: either -r (positive) or -recomb_map must be specified." 
+             << endl;
         exit(1);
     }
-    if (m < 0) {
-        cerr << "-m flag missing or invalid value. " << endl;
+    if (r > 0 && !recomb_map_filename.empty()) {
+        cerr << "Error: exactly one of -r or -recomb_map must be specified."
+             << endl;
+        exit(1);
+    }
+    if (m <= 0 && mut_map_filename.empty()) {
+        cerr << "Error: either -m (positive) or -mut_map must be specified." 
+             << endl;
+        exit(1);
+    }
+    if (m > 0 && !mut_map_filename.empty()) {
+        cerr << "Error: exactly one of -m or -mut_map must be specified."
+             << endl;
         exit(1);
     }
     if (Ne < 0) {
@@ -271,18 +291,24 @@ int main(int argc, const char * argv[]) {
         cerr << "-thin flag is invalid. " << endl;
         exit(1);
     }
-    Sampler sampler;
-    if (r > 0 and m > 0) {
-        sampler = Sampler(Ne, r, m);
+    Rate_map recomb_map;
+    if (!recomb_map_filename.empty()) {
+        recomb_map.load_map(recomb_map_filename, start_pos, end_pos);
     } else {
-        Rate_map recomb_map = Rate_map();
-        recomb_map.load_map(recomb_map_filename);
-        Rate_map mut_map = Rate_map();
-        mut_map.load_map(mut_map_filename);
-        sampler = Sampler(Ne, recomb_map, mut_map);
+        recomb_map = Rate_map(r, end_pos - start_pos);
     }
+    Rate_map mut_map;
+    if (!mut_map_filename.empty()) {
+        mut_map.load_map(mut_map_filename, start_pos, end_pos);
+    } else {
+        mut_map = Rate_map(m, end_pos - start_pos);
+    }
+    Sampler sampler(Ne, recomb_map, mut_map);
     sampler.penalty = penalty;
-    sampler.polar = polar;
+    sampler.polar_map.set_default(polar);
+    if (!polar_map_filename.empty()) {
+        sampler.polar_map.load_map(polar_map_filename, start_pos, end_pos);
+    }
     sampler.set_precision(epsilon_hmm, epsilon_psmc);
     sampler.set_input_file_prefix(input_filename);
     sampler.set_output_file_prefix(output_prefix);

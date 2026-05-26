@@ -51,16 +51,6 @@ int ARG::get_index(double x) {
     return index;
 }
 
-void ARG::compute_rhos_thetas(double r, double m) {
-    int n = (int) coordinates.size() - 1;
-    for (int i = 0; i < n; i++) {
-        rhos.push_back(r*(coordinates[i+1] - coordinates[i]));
-        thetas.push_back(m*(coordinates[i+1] - coordinates[i]));
-        // rhos.push_back(r*bin_size);
-        // thetas.push_back(m*bin_size);
-    }
-}
-
 void ARG::compute_rhos_thetas(Rate_map &rm, Rate_map &mm) {
     int n = (int) coordinates.size() - 1;
     for (int i = 0; i < n; i++) {

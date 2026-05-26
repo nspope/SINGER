@@ -9,23 +9,45 @@
 
 Rate_map::Rate_map() {}
 
-void Rate_map::load_map(string mut_map_file) {
-    ifstream fin(mut_map_file);
+Rate_map::Rate_map(double rate, double length) {
+    coordinates = {0.0, length};
+    rate_distances = {0.0, rate * length};
+    sequence_length = length;
+}
+
+void Rate_map::load_map(string filename, double start_position, double end_position) {
+    ifstream fin(filename);
     if (!fin.good()) {
         cerr << "input rate map file not found" << endl;
         exit(1);
     }
     rate_distances.push_back(0);
-    double left;
-    double right;
-    double rate;
-    double mut_dist;
+    double left, right, rate, clip_left, clip_right;
+    double last_right = NAN;
     while (fin >> left >> right >> rate) {
-        coordinates.push_back(left);
-        mut_dist = rate_distances.back() + rate*(right - left);
-        rate_distances.push_back(mut_dist);
+        if (!std::isnan(last_right) && left != last_right) {
+            cerr << "Error: rate map has an internal gap or an overlap between "
+                 << "start (" << left << ") and previous endpoint (" 
+                 << last_right << ")." << endl;
+            exit(1);
+        }
+        last_right = right;
+
+        if (right <= start_position) continue;
+        if (left >= end_position) break;
+        clip_left = max(left, start_position) - start_position;
+        clip_right = min(right, end_position) - start_position;
+        coordinates.push_back(clip_left);
+        rate_distances.push_back(
+            rate_distances.back() + rate * (clip_right - clip_left)
+        );
     }
-    sequence_length = right;
+    if (coordinates.empty() || coordinates.front() > 0 || right < end_position) {
+        cerr << "Error: rate map does not fully contain interval ["
+             << start_position << ", " << end_position << ")." << endl;
+        exit(1);
+    }
+    sequence_length = end_position - start_position;
     coordinates.push_back(sequence_length);
 }
 

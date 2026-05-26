@@ -18,6 +18,7 @@
 #include "Normalizer.hpp"
 #include "Scaler.hpp"
 #include "Rate_map.hpp"
+#include "Polar_map.hpp"
 
 class Sampler {
     
@@ -42,7 +43,7 @@ public:
     double tsp_q = 0.05;
     int random_seed = 0;
     double penalty = 0.01;
-    double polar = 0.99;
+    Polar_map polar_map;
     int sample_index = 0;
     set<Node_ptr, compare_node> sample_nodes = {};
     vector<Node_ptr> ordered_sample_nodes = {};
@@ -50,8 +51,6 @@ public:
     unordered_map<Node_ptr, set<double>> mutation_sets = {};
     
     Sampler();
-    
-    Sampler(double pop_size, double r, double m);
     
     Sampler(double pop_size, Rate_map &rm, Rate_map &mm);
     

@@ -57,8 +57,6 @@ public:
     
     int get_index(double x);
     
-    void compute_rhos_thetas(double r, double m);
-    
     void compute_rhos_thetas(Rate_map &rm, Rate_map &mm);
     
     void build_singleton_arg(Node_ptr n);

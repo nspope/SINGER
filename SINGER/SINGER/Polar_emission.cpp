@@ -138,6 +138,7 @@ double Polar_emission::null_prob(double theta) {
 }
 
 void Polar_emission::get_diff(double m, Branch branch, Node_ptr node) {
+    double pr = 0.5;
     double sl = 0;
     double su = 0;
     double s0 = 0;
@@ -152,7 +153,10 @@ void Polar_emission::get_diff(double m, Branch branch, Node_ptr node) {
     }
     if (branch.upper_node->index == -1) {
         if (sm == 0 and sl == 1) {
-            root_reward = ancestral_prob/(1 - ancestral_prob);
+            assert(ancestral_prob != nullptr);
+            pr = ancestral_prob->at_position(m);
+            //cout << "site: " << m << "polar: " << pr << endl;
+            root_reward = pr / (1 - pr);
         } else {
             root_reward = 1;
         }

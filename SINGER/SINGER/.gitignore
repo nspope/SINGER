@@ -1,0 +1,6 @@
+*.swp
+*.swo
+
+# debugging
+singer-temp
+temp_compile*
